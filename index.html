@@ -1,0 +1,189 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股资金监控 v6.0</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;color:#d0d0d0;font-family:'PingFang SC','Microsoft YaHei',sans-serif;padding:12px;font-size:13px}
+.header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#111128;border-radius:10px;margin-bottom:12px;border-bottom:2px solid #76b900}
+.header h1{font-size:15px;color:#76b900}
+.header .sub{font-size:10px;color:#666}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.btn{padding:5px 12px;border-radius:6px;border:1px solid #333;background:#1a1a3a;color:#ccc;cursor:pointer;font-size:11px}
+.btn:hover{background:#2a2a4a}
+.btn-primary{background:#76b900;color:#000;border:none;font-weight:700}
+.card{background:#111128;border-radius:8px;padding:12px;margin-bottom:10px;border:1px solid #222}
+.card-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #222;font-size:12px;font-weight:700;color:#aaa}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.kpi-card{background:#111128;border-radius:8px;padding:12px;border:1px solid #222;text-align:center}
+.kpi-card .val{font-size:22px;font-weight:800;color:#76b900}
+.kpi-card .lbl{font-size:10px;color:#888;margin-top:3px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:6px 4px;color:#777;border-bottom:1px solid #222;font-weight:600}
+td{padding:5px 4px;border-bottom:1px solid #1a1a2e}
+input{background:#1a1a3a;border:1px solid #333;border-radius:6px;padding:5px 8px;color:#ccc;font-size:11px;width:100%}
+.tag{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700}
+.tag-buy{background:rgba(118,185,0,0.2);color:#76b900}
+.tag-sell{background:rgba(255,84,112,0.2);color:#ff5470}
+.tag-warn{background:rgba(255,180,61,0.2);color:#ffb43d}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
+.grn{color:#76b900} .red{color:#ff5470} .ylw{color:#ffb43d} .blu{color:#3ea6ff} .gray{color:#666}
+.status-text{font-size:10px;color:#888}
+</style>
+</head>
+<body>
+<div class="header">
+  <div><h1>■ A股资金监控 v6.0</h1><div class="sub">模拟数据·本地运行</div></div>
+  <div class="hdr-right">
+    <span class="status-text" id="updateTime">就绪</span>
+    <span><span class="dot" id="statusDot" style="background:#76b900"></span><span id="statusText" style="color:#888;font-size:10px">就绪</span></span>
+    <button class="btn btn-primary" onclick="refresh()">刷新</button>
+  </div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="val" id="k1">--</div><div class="lbl">北向资金</div></div>
+  <div class="kpi-card"><div class="val" id="k2">--</div><div class="lbl">融资融券</div></div>
+  <div class="kpi-card"><div class="val" id="k3">--</div><div class="lbl">市场情绪</div></div>
+  <div class="kpi-card"><div class="val" id="k4">--</div><div class="lbl">综合评分</div></div>
+</div>
+
+<div class="card">
+  <div class="card-hdr"><span>赛道资金排名</span><span style="font-size:10px;color:#555">今日|近5日|近1月|近3月</span></div>
+  <table><thead><tr><th>赛道</th><th>主力净流入</th><th>涨跌幅</th><th>强度</th><th>信号</th><th>阶段</th></tr></thead><tbody id="sectorBody"></tbody></table>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-hdr">资金异动信号</div>
+    <div class="grid-3">
+      <div class="kpi-card" style="border-left:3px solid #ff5470"><div class="val red" id="sig1">0</div><div class="lbl">预警</div></div>
+      <div class="kpi-card" style="border-left:3px solid #ffb43d"><div class="val ylw" id="sig2">0</div><div class="lbl">关注</div></div>
+      <div class="kpi-card" style="border-left:3px solid #76b900"><div class="val grn" id="sig3">0</div><div class="lbl">积极</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">个股流入TOP5</div>
+    <table><thead><tr><th>个股</th><th>主力净流入</th><th>涨跌幅</th></tr></thead><tbody id="top5Body"></tbody></table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">预警·风控·复盘</div>
+  <div id="riskBody" style="font-size:11px;color:#888;min-height:30px">暂无风险预警</div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">我的自选持仓</div>
+  <div style="display:flex;gap:6px;margin-bottom:8px">
+    <input type="text" id="stockInput" placeholder="输入股票代码或名称" style="flex:1">
+    <button class="btn btn-primary" onclick="addStock()">添加</button>
+  </div>
+  <table><thead><tr><th>名称</th><th>现价</th><th>涨跌幅</th><th>主力净流入</th><th>操作</th></tr></thead><tbody id="portfolioBody"></tbody></table>
+</div>
+
+<div class="card" style="font-size:10px;color:#555">
+  <p>数据来源: 模拟数据 | 投资有风险，入市需谨慎</p>
+  <p>手动查询: <a href="https://quote.eastmoney.com/center/boardindustry.html" target="_blank" style="color:#3ea6ff">东方财富板块</a> | <a href="https://data.eastmoney.com/bkzj/hy.html" target="_blank" style="color:#3ea6ff">资金流向</a></p>
+</div>
+
+<script>
+// === 数据 ===
+var SECTORS = ["半导体","新能源车","光伏","AI算力","消费电子","生物医药","军工","证券","白酒","银行","地产","有色","化工","电力","机器人","低空经济","AI应用","量子计算","通信","传媒"];
+var portfolio = [];
+var timer = null;
+
+// === 工具 ===
+function rand(min,max){return Math.random()*(max-min)+min}
+function randInt(min,max){return Math.floor(rand(min,max+1))}
+
+// === 生成数据 ===
+function genData(){
+  return SECTORS.map(function(n){
+    var f=rand(-5e9,8e9),c=rand(-4,5),v=rand(1e8,5e9);
+    var sigs=[],cd=randInt(0,6);
+    if(f>0&&c>0) sigs.push({t:"buy",l:"量价齐升"});
+    if(f<0&&c<-2) sigs.push({t:"sell",l:"资金流出"});
+    if(f>0&&c>2) sigs.push({t:"buy",l:"强势上攻"});
+    if(Math.abs(c)<0.5&&f>0) sigs.push({t:"warn",l:"量价背离"});
+    return {name:n,mainForceInflow:f,changePercent:c,volume:v,consecutiveDays:cd,signals:sigs,strength:Math.abs(f)>0?Math.min(3,Math.abs(f)/1e9+0.5):1};
+  });
+}
+
+// === 渲染 ===
+function refresh(){
+  document.getElementById("updateTime").textContent = "更新中...";
+  var d = genData();
+  
+  // KPI
+  var totalF=d.reduce(function(a,s){return a+s.mainForceInflow},0);
+  var avgC=d.reduce(function(a,s){return a+s.changePercent},0)/d.length;
+  var upN=d.filter(function(s){return s.changePercent>0}).length;
+  var k1=document.getElementById("k1");k1.textContent=(totalF/1e8).toFixed(1)+"亿";k1.style.color=totalF>=0?"#76b900":"#ff5470";
+  document.getElementById("k2").textContent=rand(1.5,2).toFixed(2)+"万亿";
+  document.getElementById("k3").textContent=upN+"/"+d.length+"上涨";
+  document.getElementById("k4").textContent=randInt(50,90)+"分";
+  
+  // 赛道表
+  d.sort(function(a,b){return Math.abs(b.mainForceInflow)-Math.abs(a.mainForceInflow)});
+  var h="";
+  d.forEach(function(s){
+    var fy=(s.mainForceInflow/1e8).toFixed(2);
+    var fc=s.mainForceInflow>=0?"grn":"red";
+    var cc=s.changePercent>=0?"grn":"red";
+    var sg=s.signals.map(function(x){var c=x.t==="buy"?"tag-buy":(x.t==="sell"?"tag-sell":"tag-warn");return"<span class='tag "+c+"'>"+x.l+"</span>"}).join(" ")||"<span class=gray>--</span>";
+    var st=s.consecutiveDays>=3&&s.mainForceInflow>0?"启动":(s.consecutiveDays>=3&&s.mainForceInflow<0?"出货":"观察");
+    h+="<tr><td><b>"+s.name+"</b></td><td class="+fc+">"+fy+"亿</td><td class="+cc+">"+(s.changePercent>=0?"+":"")+s.changePercent.toFixed(2)+"%</td><td>"+s.strength.toFixed(1)+"</td><td>"+sg+"</td><td class=gray>"+st+"</td></tr>";
+  });
+  document.getElementById("sectorBody").innerHTML=h;
+  
+  // 信号
+  var a=d.filter(function(s){return s.signals.some(function(x){return x.t==="sell"})}).length;
+  var w=d.filter(function(s){return s.signals.some(function(x){return x.t==="warn"})}).length;
+  var b=d.filter(function(s){return s.signals.some(function(x){return x.t==="buy"})}).length;
+  document.getElementById("sig1").textContent=a;document.getElementById("sig2").textContent=w;document.getElementById("sig3").textContent=b;
+  
+  // TOP5
+  var t5=d.slice().sort(function(a,b){return b.mainForceInflow-a.mainForceInflow}).slice(0,5);
+  var t5h="";
+  t5.forEach(function(s,i){
+    t5h+="<tr><td>"+s.name+randInt(1,999)+"</td><td class="+(s.mainForceInflow>=0?"grn":"red")+">"+(s.mainForceInflow/1e8).toFixed(2)+"亿</td><td class="+(s.changePercent>=0?"grn":"red")+">"+(s.changePercent>=0?"+":"")+s.changePercent.toFixed(2)+"%</td></tr>";
+  });
+  document.getElementById("top5Body").innerHTML=t5h;
+  
+  // 风险
+  var risk=d.filter(function(s){return (s.mainForceInflow||0)<-1e9&&(s.consecutiveDays||0)>=3});
+  document.getElementById("riskBody").innerHTML=risk.length?risk.map(function(s){return"<span class=red>⚠ "+s.name+" 连续"+s.consecutiveDays+"日净流出</span>"}).join("<br>"):"<span class=gray>暂无风险预警</span>";
+  
+  document.getElementById("updateTime").textContent="最后更新: "+new Date().toLocaleString("zh-CN");
+  document.getElementById("statusDot").style.background="#76b900";
+  document.getElementById("statusText").textContent="模拟数据";
+  document.getElementById("statusText").style.color="#ffb43d";
+}
+
+function addStock(){
+  var v=document.getElementById("stockInput").value.trim();
+  if(!v){alert("请输入股票名称或代码");return}
+  portfolio.push({name:v,price:rand(10,500),change:rand(-5,5),flow:rand(-2e8,5e8)});
+  document.getElementById("stockInput").value="";
+  renderPortfolio();
+}
+
+function renderPortfolio(){
+  if(!portfolio.length){document.getElementById("portfolioBody").innerHTML="<tr><td colspan=5 style=text-align:center;color:#555>暂无自选，输入代码添加</td></tr>";return}
+  var h="";
+  portfolio.forEach(function(s,i){
+    h+="<tr><td>"+s.name+"</td><td>"+s.price.toFixed(2)+"</td><td class="+(s.change>=0?"grn":"red")+">"+(s.change>=0?"+":"")+s.change.toFixed(2)+"%</td><td class="+(s.flow>=0?"grn":"red")+">"+(s.flow/1e8).toFixed(2)+"亿</td><td><button class=btn onclick='portfolio.splice("+i+",1);renderPortfolio()'>删除</button></td></tr>";
+  });
+  document.getElementById("portfolioBody").innerHTML=h;
+}
+
+// === 启动 ===
+document.addEventListener("DOMContentLoaded",function(){refresh();renderPortfolio();});
+</script>
+</body>
+</html>
